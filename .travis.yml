@@ -86,10 +86,14 @@ install:
        rm -f $HOME/.cabal/bin/stack;
        echo "stack is located at $(which stack)";
        stack --version;
+       cp stack.cabal stack.orig-cabal;
+       sed 's@build-type:.*@build-type: Simple' < stack.orig-cabal > stack.cabal;
        rm -f $(stack --stack-yaml=$STACK_YAML path --dist-dir)/stack-*.tar.gz &&
-       stack --system-ghc --stack-yaml=$STACK_YAML build Cabal &&
        stack --system-ghc --stack-yaml=$STACK_YAML sdist --pvp-bounds=both &&
        tar xf $(stack --system-ghc --compiler=ghc-$GHCVER path --dist-dir)/stack-*.tar.gz --wildcards --strip-components=1 '*/stack.cabal' &&
+       cp stack.cabal stack.orig-cabal &&
+       sed 's@build-type:.*@build-type: Custom' < stack.orig-cabal > stack.cabal &&
+       rm -f stack.orig-cabal &&
        cabal install --only-dependencies --enable-tests --enable-benchmarks --force-reinstalls --ghc-options=-O0 --reorder-goals --max-backjumps=-1;;
    esac
 
