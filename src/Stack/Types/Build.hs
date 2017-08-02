@@ -72,7 +72,6 @@ import           Path                            (mkRelDir, parseRelDir, (</>))
 import           Path.Extra                      (toFilePathNoTrailingSep)
 import           Paths_stack                     as Meta
 import           Stack.Constants
-import           Stack.Types.BuildPlan           (PackageLocationIndex)
 import           Stack.Types.Compiler
 import           Stack.Types.CompilerBuild
 import           Stack.Types.Config
@@ -387,15 +386,15 @@ instance Store CachePkgSrc
 instance NFData CachePkgSrc
 
 toCachePkgSrc :: PackageSource -> CachePkgSrc
-toCachePkgSrc (PSLocal lp) = CacheSrcLocal (toFilePath (lpDir lp))
-toCachePkgSrc PSUpstream{} = CacheSrcUpstream
+toCachePkgSrc (PSFiles lp _) = CacheSrcLocal (toFilePath (lpDir lp))
+toCachePkgSrc PSIndex{} = CacheSrcUpstream
 
 configCacheVC :: VersionConfig ConfigCache
 configCacheVC = storeVersionConfig "config-v3" "z7N_NxX7Gbz41Gi9AGEa1zoLE-4="
 
 -- | A task to perform when building
 data Task = Task
-    { taskProvides        :: !PackageIdentifier
+    { taskProvides        :: !PackageIdentifier -- FIXME turn this into a function on taskType?
     -- ^ the package/version to be built
     , taskType            :: !TaskType
     -- ^ the task type, telling us how to build this
@@ -425,21 +424,21 @@ instance Show TaskConfigOpts where
 
 -- | The type of a task, either building local code or something from the
 -- package index (upstream)
-data TaskType = TTLocal LocalPackage
-              | TTUpstream Package InstallLocation (PackageLocationIndex FilePath) -- FIXME major overhaul for PackageLocation?
+data TaskType = TTFiles LocalPackage InstallLocation
+              | TTIndex Package InstallLocation PackageIdentifierRevision -- FIXME major overhaul for PackageLocation?
     deriving Show
 
 taskIsTarget :: Task -> Bool
 taskIsTarget t =
     case taskType t of
-        TTLocal lp -> lpWanted lp
+        TTFiles lp _ -> lpWanted lp
         _ -> False
 
 taskLocation :: Task -> InstallLocation
 taskLocation task =
     case taskType task of
-        TTLocal _ -> Local
-        TTUpstream _ loc _ -> loc
+        TTFiles _ loc -> loc
+        TTIndex _ loc _ -> loc
 
 -- | A complete plan of what needs to be built and how to do it
 data Plan = Plan

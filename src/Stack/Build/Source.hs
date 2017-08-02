@@ -31,9 +31,10 @@ import qualified    Data.Map.Strict as M
 import qualified    Data.Set as Set
 import              Stack.Build.Cache
 import              Stack.Build.Target
-import              Stack.Config (getLocalPackages)
+import              Stack.Config (getLocalPackages, getNamedComponents)
 import              Stack.Constants (wiredInPackages)
 import              Stack.Package
+import              Stack.PackageLocation
 import              Stack.Types.Build
 import              Stack.Types.BuildPlan
 import              Stack.Types.Config
@@ -88,15 +89,38 @@ loadSourceMapFull needTargets boptsCli = do
 
     -- Combine the local packages, extra-deps, and LoadedSnapshot into
     -- one unified source map.
-    let sourceMap = Map.unions
-            [ Map.fromList $ map (\lp' -> (packageName $ lpPackage lp', PSLocal lp')) locals
-            , flip Map.mapWithKey localDeps $ \n lpi ->
-                let configOpts = getGhcOptions bconfig boptsCli n False False
-                 in PSUpstream (lpiVersion lpi) Local (lpiFlags lpi) (lpiGhcOptions lpi ++ configOpts) (lpiLocation lpi)
-            , flip Map.mapWithKey (lsPackages ls) $ \n lpi ->
-                let configOpts = getGhcOptions bconfig boptsCli n False False
-                 in PSUpstream (lpiVersion lpi) Snap (lpiFlags lpi) (lpiGhcOptions lpi ++ configOpts) (lpiLocation lpi)
-            ]
+    let goLPI loc n lpi = do
+          let configOpts = getGhcOptions bconfig boptsCli n False False
+          case lpiLocation lpi of
+            PLIndex pir -> return $ PSIndex loc (lpiFlags lpi) (lpiGhcOptions lpi ++ configOpts) pir
+            PLOther pl -> do
+              -- FIXME lots of code duplication with getLocalPackages
+              menv <- getMinimalEnvOverride
+              root <- view projectRootL
+              dir <- resolveSinglePackageLocation menv root pl
+              cabalfp <- findOrGenerateCabalFile dir
+              bs <- liftIO (S.readFile (toFilePath cabalfp))
+              (warnings, gpd) <-
+                case rawParseGPD bs of
+                  Left e -> throwM $ InvalidCabalFileInLocal (PLOther pl) e bs
+                  Right x -> return x
+              mapM_ (printCabalFileWarning cabalfp) warnings
+              lp' <- loadLocalPackage boptsCli targets (n, LocalPackageView
+                { lpvVersion = lpiVersion lpi
+                , lpvRoot = dir
+                , lpvCabalFP = cabalfp
+                , lpvComponents = getNamedComponents gpd
+                , lpvGPD = gpd
+                , lpvLoc = pl
+                })
+              -- in PSUpstream (lpiVersion lpi) Local (lpiFlags lpi) (lpiGhcOptions lpi ++ configOpts) (lpiLocation lpi)
+              return $ PSFiles lp' loc
+    sourceMap' <- Map.unions <$> sequence
+      [ return $ Map.fromList $ map (\lp' -> (packageName $ lpPackage lp', PSFiles lp' Local)) locals
+      , sequence $ Map.mapWithKey (goLPI Local) localDeps
+      , sequence $ Map.mapWithKey (goLPI Snap) (lsPackages ls)
+      ]
+    let sourceMap = sourceMap'
             `Map.difference` Map.fromList (map (, ()) (HashSet.toList wiredInPackages))
 
     return

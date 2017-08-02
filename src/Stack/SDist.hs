@@ -209,8 +209,7 @@ getCabalLbs pvpBounds mrev fp = do
       where
         lookupVersion name =
           case Map.lookup name sourceMap of
-              Just (PSLocal lp) -> Just $ packageVersion $ lpPackage lp
-              Just (PSUpstream version _ _ _ _) -> Just version
+              Just ps -> Just (piiVersion ps)
               Nothing ->
                   case Map.lookup name installedMap of
                       Just (_, installed) -> Just (installedVersion installed)
@@ -285,7 +284,7 @@ getSDistFileList lp =
     ac = ActionContext Set.empty []
     task = Task
         { taskProvides = PackageIdentifier (packageName package) (packageVersion package)
-        , taskType = TTLocal lp
+        , taskType = TTFiles lp Local
         , taskConfigOpts = TaskConfigOpts
             { tcoMissing = Set.empty
             , tcoOpts = \_ -> ConfigureOpts [] []

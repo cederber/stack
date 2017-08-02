@@ -220,14 +220,9 @@ warnIfExecutablesWithSameNameCouldBeOverwritten locals plan = do
         collect
             [ (exe,pkgName)
             | (pkgName,task) <- Map.toList (planTasks plan)
-            , isLocal task
-            , exe <- (Set.toList . exeComponents . lpComponents . taskLP) task
+            , TTFiles lp _ <- [taskType task] -- FIXME analyze logic here, do we need to check for Local?
+            , exe <- (Set.toList . exeComponents . lpComponents) lp
             ]
-      where
-        isLocal Task{taskType = (TTLocal _)} = True
-        isLocal _ = False
-        taskLP Task{taskType = (TTLocal lp)} = lp
-        taskLP _ = error "warnIfExecutablesWithSameNameCouldBeOverwritten/taskLP: task isn't local"
     localExes :: Map Text (NonEmpty PackageName)
     localExes =
         collect
