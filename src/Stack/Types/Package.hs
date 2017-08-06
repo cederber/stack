@@ -25,6 +25,7 @@ import           Distribution.Package hiding (Package,PackageName,packageName,pa
 import           Distribution.PackageDescription (TestSuiteInterface, BuildType)
 import           Distribution.System (Platform (..))
 import           Path as FL
+import           Stack.Types.BuildPlan (PackageLocationIndex)
 import           Stack.Types.Compiler
 import           Stack.Types.Config
 import           Stack.Types.FlagName
