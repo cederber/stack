@@ -72,7 +72,7 @@ loadSourceMapFull :: HasEnvConfig env
                   -> RIO env
                        ( Map PackageName Target
                        , LoadedSnapshot
-                       , [LocalPackage]
+                       , [LocalPackage] -- FIXME do we really want this? it's in the SourceMap
                        , Set PackageName -- non-project targets
                        , SourceMap
                        )
