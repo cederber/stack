@@ -53,7 +53,10 @@ Bug fixes:
   [#3171](https://github.com/commercialhaskell/stack/pull/3171)
 * Previously, cabal files with just test-suite could cause build to fail
   ([#2862](https://github.com/commercialhaskell/stack/issues/2862))
-
+* Now clears the hackage index cache if it is older than the
+  downloaded index.  Fixes potential issue if stack was interrupted when
+  updating index.
+  See [#3033](https://github.com/commercialhaskell/stack/issues/3033)
 
 ## 1.5.1
 
